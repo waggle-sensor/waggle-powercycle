@@ -1,0 +1,187 @@
+#!/bin/bash
+
+print_help() {
+  echo """
+usage: $0 [-u] [-d]
+
+Helper script to power down / up the compute units and accessories of the WSN.
+
+  -u : execute power-up instead [default: power-down]
+  -r : execute a reboot (power-down, sleep, power-up). Overrides any other operations.
+  -s : specify sleep time between the power-down and power-up operations of a reboot [default: 5s]
+  -d : (optional) dry-run mode (don't perform power-up/power-down) [default: False]
+"""
+}
+
+AGENTS=(
+  "ws-rpi"
+  "ws-nxagent"
+)
+
+POWERDOWN=1
+POWERUP=
+REBOOT_SLEEP=
+REBOOT_SLEEP_TIME=5
+DRY=
+TITLE="Executing WSN agent(s)"
+while getopts "urs:d?" opt; do
+  case $opt in
+    u) POWERDOWN=
+       POWERUP=1
+       REBOOT_SLEEP=
+      ;;
+    r) POWERDOWN=1
+       POWERUP=1 
+       REBOOT_SLEEP=1
+      ;;
+    s) REBOOT_SLEEP_TIME=$OPTARG
+      ;;
+    d) DRY=1
+       echo "** DRY RUN MODE **"
+      ;;
+    ?|*)
+      print_help
+      exit 1
+      ;;
+  esac
+done
+
+## Power-down operations
+if [ -n "${POWERDOWN}" ]; then
+  echo "${TITLE} power-down"
+
+  # always shutdown the agents, on system power-up the agents will be restarted
+  for agent in "${AGENTS[@]}"; do
+    echo "- shutdown $agent..."
+    if [ -z "${DRY}" ]; then
+      if ! ssh -q $agent 'systemctl poweroff'; then
+        echo "WARNING: unable to shutdown agent [$agent]"
+      fi
+    fi
+    echo "- shutdown $agent...DONE"
+  done
+
+  # always power off the PSU ports, on system power-up the PSU ports will be powered on
+  echo "- power off PSU ports..."
+  if [ -z "${DRY}" ]; then
+    if ! waggle-set-psu-state off off; then
+      echo "WARNING: unable turn off PSU outputs"
+    fi
+  fi
+  echo "- power off PSU ports...DONE"
+fi
+
+## Reboot Sleep Operations
+if [ -n "${REBOOT_SLEEP}" ]; then
+  echo "Pause between power-down & power-up [${REBOOT_SLEEP_TIME}s]"
+  if [ -z "${DRY}" ]; then
+    sleep ${REBOOT_SLEEP_TIME}
+  fi
+fi
+
+## Power-up Operations
+gpio_high() { 
+  local gpio=$1
+  if [ ! -f $gpiopath/gpio$gpio/value ]; then 
+    echo "ERROR: Cannot find value of gpio [$gpio]"
+    exit 1
+  fi
+
+  if [ $(cat $gpiopath/gpio$gpio/value) -eq 1 ]; then 
+    return 0
+  else 
+    return 1
+  fi
+}
+
+verify_export() { 
+  local gpio=$1
+
+  # try to export, it will give us error if we can't
+  if [ ! -d $gpiopath/gpio$gpio ]; then 
+    if ! echo $gpio > $gpiopath/export; then
+      echo "ERROR: Could not export gpio [$gpio]"
+      exit 2
+    fi
+  fi
+
+  # set the gpio as input
+  echo "in" > $gpiopath/gpio$gpio/direction
+
+  # verify that our gpio is an input
+  if [ "$(cat $gpiopath/gpio$gpio/direction)" != "in" ]; then
+    echo "ERROR: could not verify input direction for gpio [$gpio]"
+    exit 3
+  fi
+}
+
+if [ -n "${POWERUP}" ]; then
+  echo "${TITLE} power-up"
+
+  gpiopath="/sys/class/gpio"
+  pg2=$(waggle-get-config -s wagman -k gpio-pg2)
+  pg3=$(waggle-get-config -s wagman -k gpio-pg3)
+  pg4=$(waggle-get-config -s wagman -k gpio-pg4)
+
+  PG2_CHECK=
+  EP_STATE=off
+  PG3_CHECK=
+  PG4_CHECK=
+  PH_STATE=off
+
+  # read the manifest and disable checks for things we dont need
+  if cat /etc/waggle/node_manifest.json | jq .psu.ep_supply.present | grep -q true; then
+    echo '- EP supply (installed), perform PG2 check'
+    PG2_CHECK=1
+    EP_STATE=on
+  fi
+  if cat /etc/waggle/node_manifest.json | jq .psu.ph_supply.present | grep -q true; then
+    echo '- PH supply (installed), perform PG3 & PG4 check'
+    PG3_CHECK=1
+    PG4_CHECK=1
+    PH_STATE=on
+  fi
+
+  # then read the GPIOs for based on the manifest. if they are NOT all high, then toggle PSU to all on
+  trigger_psu_toggle=
+
+  if [ -n "${PG2_CHECK}" ]; then
+    verify_export $pg2
+    echo "- PSU PG2 set to $(cat $gpiopath/gpio$pg2/value)"
+    if ! gpio_high $pg2; then
+      echo "- trigger PSU toggle"
+      trigger_psu_toggle=1
+    fi
+  fi
+  
+  if [ -n "${PG3_CHECK}" ]; then
+    verify_export $pg3
+    echo "- PSU PG3 set to $(cat $gpiopath/gpio$pg3/value)"
+    if ! gpio_high $pg3; then
+      echo "- trigger PSU toggle"
+      trigger_psu_toggle=1
+    fi
+  fi
+
+  if [ -n "${PG4_CHECK}" ]; then
+    verify_export $pg4
+    echo "- PSU PG4 set to $(cat $gpiopath/gpio$pg4/value)"
+    if ! gpio_high $pg4; then
+      echo "- trigger PSU toggle"
+      trigger_psu_toggle=1
+    fi
+  fi  
+
+  echo "- power on PSU ports..."
+  if [ -z "${DRY}" ]; then
+    if [ -n "${trigger_psu_toggle}" ]; then
+      echo "- execute PSU toggle (EP: ${EP_STATE} | PH: ${PH_STATE})"
+      if ! waggle-set-psu-state ${EP_STATE} ${PH_STATE}; then
+        echo "WARNING: unable turn on PSU outputs"
+      fi
+    else
+      echo "- skipping PSU toggle, PSU in correct state"
+    fi
+  fi
+  echo "- power on PSU ports...DONE"
+fi

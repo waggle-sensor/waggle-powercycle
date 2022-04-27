@@ -2,7 +2,7 @@
 
 case "${1}" in
   configure)
-    echo "Enabling Waggle Power-up Service"
-    systemctl enable waggle-power-up.service
+    echo "Enabling Waggle Agent Power Service"
+    systemctl enable waggle-agent-power.service
     ;;
 esac
