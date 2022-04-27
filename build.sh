@@ -6,4 +6,4 @@ docker run --rm \
   -e "MAINTAINER=sagecontinuum.org" \
   -e "DEPENDS=waggle-common-tools (>= 0.2.0)" \
   -v "$PWD:/repo" \
-  waggle/waggle-deb-builder:0.3.1
+  waggle/waggle-deb-builder:0.3.2
