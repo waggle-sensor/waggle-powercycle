@@ -1,0 +1,19 @@
+[Unit]
+Description=Waggle Agent Power Service
+# Ensure we start before services that need local lan
+Wants=dnsmasq.service
+Before=dnsmasq.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# the sleep is to ensure a service restart does't power down/up too quickly
+ExecStartPre=-/bin/sleep 5
+ExecStart=/usr/bin/waggle-agent-power -u
+ExecStop=/usr/bin/waggle-agent-power
+TimeoutStartSec=10s
+TimeoutStopSec=2m
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

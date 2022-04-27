@@ -1,22 +1,18 @@
 # Waggle Powercycle
 
-Wild Sage Node shutdown & reboot tools to ensure all compute units and accessories are included in the shutdown / reboot sequence.  Includes 2 tools:
+Tools and services to ensure the compute units (i.e. RPi) and accessories (i.e. network switch) of the WSN follow the power state of the NX Core. When the NX Core is powered-up the compute units and accessories are ensured to be powered-up & when then NX Core is powered-down the compute units and accessories are also powered-down.
 
-1. `waggle-powercycle` command to initiate shutdown or reboot (default) of the WSN
-2. `waggle-power-up` service that is auto-run on the NX core boot-up to ensure the power supply unit (PSU) ports are enabled (powering the WSN agent compute units and accessories)
+Consists of 2 parts:
 
-## Usage (`waggle-powercycle`)
+1. `waggle-agent-power.service` service that is executed early in the NX core boot sequence to power-up compute units and accessories and runs during NX core shutdown to power-down compute units and accessories.
+2. `waggle-agent-power` helper tool used by the `waggle-agent-power.service` to perform the power-up / power-down actions.
 
-To reboot the WSN execute the following command:
+## Usage (`waggle-agent-power`)
 
-```
-waggle-powercycle
-```
+The `waggle-agent-power` tool is not intended to be called directly, but instead as a part of the `waggle-agent-power.service`
 
-To shutdown the WSN execute the following command:
+For usage instructions exucute the following:
 
 ```
-waggle-powercycle -s
+waggle-agent-power -h
 ```
-
-> *Note*: the `waggle-powercycle` command can be run in 'dry-run' mode by issuing the `-d` argument
