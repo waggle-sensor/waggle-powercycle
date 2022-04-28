@@ -65,6 +65,9 @@ if [ -n "${POWERDOWN}" ]; then
     echo "- shutdown $agent...DONE"
   done
 
+  # allow the above agents sometime to perform thier shutdown sequence
+  sleep 10
+
   # always power off the PSU ports, on system power-up the PSU ports will be powered on
   echo "- power off PSU ports..."
   if [ -z "${DRY}" ]; then
