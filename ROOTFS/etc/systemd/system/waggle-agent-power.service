@@ -10,7 +10,7 @@ RemainAfterExit=yes
 # the sleep is to ensure a service restart does't power down/up too quickly
 ExecStartPre=-/bin/sleep 5
 ExecStart=/usr/bin/waggle-agent-power -u
-ExecStop=/usr/bin/waggle-agent-power
+ExecStop=/usr/bin/waggle-agent-power -t 45
 TimeoutStartSec=10s
 TimeoutStopSec=2m
 RestartSec=5s
