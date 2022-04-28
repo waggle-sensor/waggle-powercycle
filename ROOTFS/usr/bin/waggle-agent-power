@@ -58,7 +58,7 @@ if [ -n "${POWERDOWN}" ]; then
   for agent in "${AGENTS[@]}"; do
     echo "- shutdown $agent [timeout: ${AGENT_TIMEOUT}]..."
     if [ -z "${DRY}" ]; then
-      if ! timeout ${AGENT_TIMEOUT} ssh -q $agent 'systemctl poweroff'; then
+      if ! timeout ${AGENT_TIMEOUT} ssh $agent 'systemctl poweroff'; then
         echo "WARNING: unable to shutdown agent [$agent]"
       fi
     fi
