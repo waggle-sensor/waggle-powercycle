@@ -9,7 +9,8 @@ Helper script to power down / up the compute units and accessories of the WSN.
   -u : execute power-up instead [default: power-down]
   -r : execute a reboot (power-down, sleep, power-up). Overrides any other operations.
   -s : specify sleep time between the power-down and power-up operations of a reboot [default: 5s]
-  -d : (optional) dry-run mode (don't perform power-up/power-down) [default: False]
+  -t : specify the timeout (in seconds) for each agent to execute its shutdown [default: 30s]
+  -d : dry-run mode (don't perform power-up/power-down) [default: False]
 """
 }
 
@@ -22,9 +23,10 @@ POWERDOWN=1
 POWERUP=
 REBOOT_SLEEP=
 REBOOT_SLEEP_TIME=5
+AGENT_TIMEOUT=30
 DRY=
 TITLE="Executing WSN agent(s)"
-while getopts "urs:d?" opt; do
+while getopts "urs:t:d?" opt; do
   case $opt in
     u) POWERDOWN=
        POWERUP=1
@@ -35,6 +37,8 @@ while getopts "urs:d?" opt; do
        REBOOT_SLEEP=1
       ;;
     s) REBOOT_SLEEP_TIME=$OPTARG
+      ;;
+    t) AGENT_TIMEOUT=$OPTARG
       ;;
     d) DRY=1
        echo "** DRY RUN MODE **"
@@ -52,9 +56,9 @@ if [ -n "${POWERDOWN}" ]; then
 
   # always shutdown the agents, on system power-up the agents will be restarted
   for agent in "${AGENTS[@]}"; do
-    echo "- shutdown $agent..."
+    echo "- shutdown $agent [timeout: ${AGENT_TIMEOUT}]..."
     if [ -z "${DRY}" ]; then
-      if ! ssh -q $agent 'systemctl poweroff'; then
+      if ! timeout ${AGENT_TIMEOUT} ssh -q $agent 'systemctl poweroff'; then
         echo "WARNING: unable to shutdown agent [$agent]"
       fi
     fi
