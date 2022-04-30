@@ -3,6 +3,9 @@ Description=Waggle Agent Power Service
 # Ensure we start before services that need local lan
 Wants=dnsmasq.service
 Before=dnsmasq.service
+# Ensure the NFS file system is still up when we attempt to shutdown the RPI
+Wants=rpcbind.service nfs-server.service
+After=rpcbind.service nfs-server.service
 
 [Service]
 Type=oneshot
