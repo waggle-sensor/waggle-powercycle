@@ -59,7 +59,7 @@ if [ -n "${POWERDOWN}" ]; then
     echo "- shutdown $agent [timeout: ${AGENT_TIMEOUT}]..."
     if [ -z "${DRY}" ]; then
       # client side timeouts to clean-up "hung" ssh sessions (i.e. rpi)
-      if ! timeout ${AGENT_TIMEOUT} ssh -o ServerAliveInterval=1 -o ServerAliveCountMax=5 \
+      if ! timeout ${AGENT_TIMEOUT} ssh -o ServerAliveInterval=2 -o ServerAliveCountMax=10 \
           $agent 'systemctl poweroff -i'; then
         echo "WARNING: unable to shutdown agent [$agent]"
       fi
@@ -68,7 +68,7 @@ if [ -n "${POWERDOWN}" ]; then
   done
 
   # allow the above agents sometime to perform thier shutdown sequence
-  sleep 10
+  sleep 30
 
   # always power off the PSU ports, on system power-up the PSU ports will be powered on
   echo "- power off PSU ports..."
