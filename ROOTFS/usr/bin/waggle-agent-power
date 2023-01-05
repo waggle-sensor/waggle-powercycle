@@ -134,21 +134,18 @@ if [ -n "${POWERUP}" ]; then
 
   PG2_CHECK=
   EP_STATE=off
-  PG3_CHECK=
-  PG4_CHECK=
-  PH_STATE=off
+  # assume we have "ph supply", as all nodes have this
+  echo '- PH supply (installed), perform PG3 & PG4 check'
+  PG3_CHECK=1
+  PG4_CHECK=1
+  PH_STATE=on
 
   # read the manifest and disable checks for things we dont need
-  if cat /etc/waggle/node_manifest.json | jq .psu.ep_supply.present | grep -q true; then
+  psumodel=$(cat /etc/waggle/node-manifest-v2.json | jq -r '.resources[] | select(.name == "psu").hardware.hardware')
+  if [[ "$psumodel" == "psu-bbbd" ]]; then
     echo '- EP supply (installed), perform PG2 check'
     PG2_CHECK=1
     EP_STATE=on
-  fi
-  if cat /etc/waggle/node_manifest.json | jq .psu.ph_supply.present | grep -q true; then
-    echo '- PH supply (installed), perform PG3 & PG4 check'
-    PG3_CHECK=1
-    PG4_CHECK=1
-    PH_STATE=on
   fi
 
   # then read the GPIOs for based on the manifest. if they are NOT all high, then toggle PSU to all on
